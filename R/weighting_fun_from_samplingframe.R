@@ -6,8 +6,9 @@
 #' @param data.stratum.column data column name that holds the record's strata names
 #' @param data optional but recommended: you can provide an example data frame of data supposed to match the sampling frame to check if the provided variable names match and whether all strata in the data appear in the sampling frame.
 #' @return returns a new function that takes a data frame as input returns a vector of weights corresponding to each row in the data frame.
-#' @example
-#' # laod data and sampling frames:
+#' @examples
+
+#' # load data and sampling frames:
 #' mydata<-read.csv("mydata.csv")
 #' mysamplingframe<-read.csv("mysamplingframe.csv")
 #' # create weighting function:
@@ -21,6 +22,9 @@
 #' # this also works on subsets of the data:
 #' mydata_subset<-mydata[1:100,]
 #' subset_weights<- weighting(mydata)
+#'
+#' @importFrom magrittr %>%
+#'
 #' @export
 weighting_fun_from_samplingframe <- function(sampling.frame,
                                              data.stratum.column,
@@ -34,6 +38,10 @@ weighting_fun_from_samplingframe <- function(sampling.frame,
   # check input
 
   # load file (loading from csv depreciated; just renaming)
+  sampling.frame<-as.data.frame(sampling.frame,stringsAsFactors = FALSE)
+  if(!is.null(data)){
+    data<-as.data.frame(data,stringsAsFactors = FALSE)
+  }
   sf_raw<-sampling.frame
   if(any(duplicated(sf_raw[, sampling.frame.stratum.column]))){
     sf_raw<-sf_raw[!duplicated(sf_raw[sampling.frame.stratum.column]),]
@@ -67,7 +75,7 @@ weighting_fun_from_samplingframe <- function(sampling.frame,
     is_data_in_sf<-unique(data[,data.stratum.column]) %in% sf_raw[,sampling.frame.stratum.column]
     if(any(!(is_data_in_sf))){
       warning(paste0("there are records that can not be found in the sampling frame:\n",
-                     cyan(paste0(data[is_data_in_sf,data.stratum.column] %>% unique,collapse="\n"))))
+                     crayon::cyan(paste0(data[is_data_in_sf,data.stratum.column] %>% unique,collapse="\n"))))
     }
   }
 
@@ -75,6 +83,13 @@ weighting_fun_from_samplingframe <- function(sampling.frame,
   # closure function that calculates weights on the fly
   # uses immutable data provided to load_samplingframe()
   weights_of<- function(df) {
+
+    if(!is.data.frame(df)){stop("df must be a data.frame")}
+
+    # in case of tibble.. just to be sure (as tibbles weren't originally accounted for)
+    df<-as.data.frame(df,stringsAsFactors = FALSE)
+    # factors scare me:
+    df<-lapply(df,function(x){if(is.factor(x)){return(as.character(x))};x}) %>% as.data.frame(stringsAsFactors=FALSE)
     # # insure stratum column exists in df:
     if (!all(data.stratum.column %in% names(df))){stop(paste0("data frame column '",data.stratum.column, "'not found."))}
 
